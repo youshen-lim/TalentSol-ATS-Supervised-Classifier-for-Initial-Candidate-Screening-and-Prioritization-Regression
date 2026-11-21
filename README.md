@@ -101,7 +101,7 @@ The `predict.py` script is provided in the notebook as a standalone example of h
 
 ## Engineering Integration Recommendations
 
-For integrating this model into a production ATS (like TalentSol), consider these principles and recommended services. These recommendations apply to a retrained model without protected attributes, not to the current saved pipeline.
+Consider these principles and recommended services before integrating a retrained model, without protected attributes, into a production ATS. TalentSol is an MVP learning project and is not deployed for real hiring. These recommendations do not apply to the current saved pipeline.
 
 *   **Start Simple and Iterate:** Start with the current pipeline. Add complexity only when a measured requirement calls for it.
 *   **Explainability and Transparency Document:** Document the model, its limitations, the data, and how it produces predictions.
@@ -178,5 +178,6 @@ On **November 20, 2026**, I checked the statements below against the notebook ou
 | Notebook file | `TalentSol_ATS_ML_Project.ipynb` | `TalentSol_Supervised_Classifier_for_Initial_Candidate_Screening_Public.ipynb` | Did not match the repository |
 | Notebook section | "Section 7.3: Explain Web framework/API integration (Conceptual)" | Discussed briefly at the end of Section 7 | The notebook has no Section 7.3. |
 | Resume Optimization Tips | Tips for applicants to raise their score | Replaced with a model risk note | The tips described how to game a model that also scores Ethnicity. |
+| TalentSol status | "a production ATS (like TalentSol)" | TalentSol is an MVP learning project, not deployed for real hiring | The sentence implied that TalentSol is a production system. Corrected on November 20, 2026. |
 
 The six model configurations, the use of 5 fold stratified cross validation and grid search, the threshold metrics for all six models, the bigram result, the 0.4996 threshold in the notebook `predict.py` example, and the pipeline components were rechecked against the notebook and the saved pipeline and are accurate as originally published.
