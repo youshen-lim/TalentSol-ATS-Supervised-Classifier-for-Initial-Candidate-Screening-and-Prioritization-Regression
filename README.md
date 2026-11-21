@@ -1,8 +1,8 @@
 # TalentSol - Applicant Tracking System Learning Project (Machine Learning Component)
 
-This repository contains the machine learning component of the TalentSol project, focusing on training a supervised classifier to predict and recommend candidates for prioritization for a given job role and description. This is a learning project exploring different text embedding techniques and model evaluation for a real-world recruitment use case.
+This repository contains the machine learning component of the TalentSol project. It trains a supervised classifier to prioritize candidates for a job role and description. This learning project compares text embedding techniques and evaluation methods on a fixed template Kaggle recruitment dataset.
 
-> **Important: the saved model uses Ethnicity.** The saved logistic regression pipeline one hot encodes an Ethnicity column as an input. The Ethnicity values in the training data are mostly national origin labels, such as Chinese, Irish and Nigerian. Using this input to screen candidates is not acceptable for real hiring. I plan to retrain the model without Ethnicity, Race1 and Race2. Race1 and Race2 are already excluded from the saved model. The reported metrics are scores on the training data. They must be measured again after retraining, with a held out split. This model is a learning artifact. Do not use it for real hiring decisions. See [Fairness](#fairness) and [Limitations](#limitations).
+> **Important: the saved model uses Ethnicity.** The saved logistic regression pipeline one hot encodes an Ethnicity column as an input. The Ethnicity values in the training data are mostly national origin labels, such as Chinese, Irish and Nigerian. Using this input to screen candidates is not acceptable for real hiring. I plan to retrain the model without Ethnicity, Race1 and Race2. The saved model already excludes Race1 and Race2. Five reported threshold result rows use predictions on the same rows used for fitting. The Weighted Hybrid row uses cross validated probabilities. All results need a new evaluation with a test split made before oversampling and another evaluation after retraining without Ethnicity. This model is a learning artifact. Do not use it for real hiring decisions. See [Fairness](#fairness) and [Limitations](#limitations).
 
 ## Project Goal
 
@@ -28,7 +28,7 @@ The following preprocessing and feature engineering steps were performed on the 
 4.  **Oversampling:** The classes were close to balanced, with 5,150 rows that were not a "Best Match" and 4,850 rows that were. I oversampled the "Best Match" class to 5,150 rows by sampling with replacement. This bootstrap sample duplicated some positive rows and left out others. The committed training CSV has 10,300 rows, of which 8,260 are unique. It contains 3,110 unique positive rows, so 1,740 of the 4,850 original positive rows are absent.
 5.  **Categorical Encoding:** Job Roles and Ethnicity were one hot encoded. The Race column was split into Race1 and Race2, and then both columns were dropped. The saved model still uses Ethnicity as an input. I originally kept Ethnicity for diversity hiring reasons. That was the wrong choice. A screening model must not score candidates on a protected characteristic. I plan to retrain the model without Ethnicity.
 6.  **Text Feature Embedding:** This is where we convert the text from 'Job Description' and 'Resume' into numbers. We explored different methods:
-    *   **TF-IDF Vectorization (Term Frequency-Inverse Document Frequency):** Calculates a score for each word based on its frequency within a document and its rarity across all documents. We also explored and optimized **n-grams** (sequences of words) to capture phrase meaning. Bigrams (1,2) raised the best cross validation ROC AUC from 0.5801 to 0.5967. These cross validation scores share the duplicate row problem described below.
+    *   **TF-IDF Vectorization (Term Frequency-Inverse Document Frequency):** Calculates a score for each word based on its frequency within a document and its rarity across all documents. We also explored and optimized **n-grams** (sequences of words) to capture phrase meaning. The notebook reports a best cross validation ROC AUC of 0.5800 before bigram tuning and 0.5967 after selecting bigrams for both text inputs. These cross validation scores share the duplicate row problem described below.
     *   **Word2Vec Embeddings:** Learns dense numerical vector representations for words, capturing semantic relationships. Document vectors were created by averaging word vectors.
     *   **Hybrid Embeddings:** Combinations of TF-IDF and Word2Vec features were created to leverage the strengths of both approaches. An optimized hybrid approach used TF-IDF with tuned n-grams and Word2Vec.
 
@@ -47,7 +47,7 @@ We explored and tuned the following six model configurations:
 5.  **Logistic Regression with Optimized Hybrid Embeddings (Optimized TF-IDF + Word2Vec):** Combined optimized TF-IDF (using the tuned `ngram_range` from configuration 3) and Word2Vec features, then tuned `C` and `penalty` for the Logistic Regression model on this combined feature set.
 6.  **Weighted Hybrid Model (TF-IDF + Optimized TF-IDF):** This is a simple ensemble model. Instead of training a single Logistic Regression model on a combined feature set, it averages the predicted probabilities from the separately trained Tuned TF-IDF model (configuration 1) and the Tuned, N-gram Optimized TF-IDF model (configuration 3). The decision threshold for this averaged probability was then optimized.
 
-The models were primarily evaluated based on standard metrics (Accuracy, Precision, Recall, F1-score, ROC AUC). Crucially, **Precision-Recall curves** were analyzed for each model's predicted probabilities, and **decision thresholds were optimized to achieve a target recall level** (approximately 70%). This optimization aligns the model's decision-making with the project's goal of prioritizing candidates and minimizing false negatives. Confusion matrices were visualized at these optimized thresholds to understand the specific performance trade-offs in terms of true positives, false positives, true negatives, and false negatives. The notebook has no separate train and test split.
+I evaluated six configurations with Accuracy, Precision, Recall, F1 score, and ROC AUC. I used precision recall curves to tune thresholds toward a recall target of 0.700. I plotted confusion matrices at the tuned thresholds. The notebook has no separate training and test split.
 
 **Methodology for Prediction (How the Model Makes a Prediction):**
 
@@ -55,7 +55,7 @@ For a new applicant, the prediction process involves: applying the *same* prepro
 
 **Responsible AI Considerations:**
 
-I removed Age, Gender, Race1 and Race2 before training. The model still uses Ethnicity, as described above. Using Ethnicity to screen candidates is not acceptable for real hiring. I plan to retrain the model without Ethnicity, Race1 and Race2 and report the new results. Logistic Regression's relative interpretability was also a factor. Further steps for a production system would include bias audits, fairness metrics, human oversight, and transparency.
+I removed Age, Gender, Race1 and Race2 before training. The model still uses Ethnicity, as described above. Using Ethnicity to screen candidates is not acceptable for real hiring. I plan to retrain the model without Ethnicity, Race1 and Race2 and report the new results. A production system would also need bias audits, fairness metrics, human oversight, and transparency.
 
 ### Why I am removing protected attributes from the model
 
@@ -103,16 +103,16 @@ The `predict.py` script is provided in the notebook as a standalone example of h
 
 For integrating this model into a production ATS (like TalentSol), consider these principles and recommended services. These recommendations apply to a retrained model without protected attributes, not to the current saved pipeline.
 
-*   **Start Simple and Iterate:** Begin with a straightforward and lightweight architecture. This is a key engineering tenet. For a problem like initial candidate screening, which involves handling a high volume of candidates and prioritizing for high recall, starting simple allows for faster experimentation and testing to quickly determine if the solution is effective before adding complexity. Avoid unnecessary complexity ("bloat") that could negatively impact inference performance or operational costs. Iterate and add complexity only when necessary to meet specific requirements.
-*   **Explainability and Transparency Document:** Create a clear and easy-to-understand document explaining how the model works, its limitations, the data used, and how predictions are made. This document is crucial for users of the system (recruiters, HR personnel) and other stakeholders (business leads, legal) to build trust, ensure fair usage, and understand the model's impact on the hiring process.
-*   **Real-time Data Pipeline:** Implement an efficient pipeline to preprocess new applicant data using the loaded pipeline's transformers. Recommended services for building data pipelines include serverless functions (e.g., Cloud Functions, Lambda), containerization platforms (e.g., Cloud Run, Kubernetes), or batch processing services (e.g., Dataflow, EMR) depending on latency and throughput requirements.
+*   **Start Simple and Iterate:** Start with the current pipeline. Add complexity only when a measured requirement calls for it.
+*   **Explainability and Transparency Document:** Document the model, its limitations, the data, and how it produces predictions.
+*   **Data Pipeline:** Build a pipeline that applies the saved transformers to new applicant data. Select a deployment service after measuring latency and throughput requirements.
 *   **Data and Model Storage:** Securely store raw data, processed data, and the trained model pipeline. Cloud Object Storage (e.g., Cloud Storage, S3, Blob Storage) is suitable for raw data and model files. Managed databases (e.g., Cloud SQL, RDS, Azure SQL) can store structured applicant data. Consider a Feature Store for managing and serving features consistently.
 *   **Latency:** Monitor and optimize prediction latency. I did not benchmark latency for any model in this project.
 *   **Memory:** Be mindful of the memory footprint of the loaded pipeline, especially for the TF-IDF vectorizer's vocabulary (which can be large for n-grams).
-*   **Vector Databases:** For models utilizing dense vector embeddings (like the Word2Vec and Hybrid models), consider the use of a dedicated vector database. This can be essential for efficient storage, indexing, and retrieval of these embeddings at scale, particularly if implementing features beyond simple classification, such as semantic search or candidate similarity matching. While the selected Optimized TF-IDF model generates sparse features and may not require a vector database for core prediction, understanding the architectural implications of embedding-based models is valuable for evaluating the engineering complexity and cost trade-offs.
+*   **Vector Databases:** The saved TF-IDF pipeline does not require a vector database for prediction. Evaluate one separately if a future feature requires semantic search or similarity matching.
 *   **Scalability:** Deploy the model as a scalable service.
 *   **Monitoring:** Implement monitoring for performance tracking (e.g., inference time, error rates), data drift (changes in input data characteristics), and model drift (degradation in model performance over time).
-*   **API Endpoint:** Provide a clear and well-documented API for seamless integration with other components of the ATS.
+*   **API Endpoint:** Provide a documented API for integration with the ATS.
 *   **Security:** Ensure secure handling and storage of sensitive applicant data and the model artifact.
 *   **Versioning:** Use a system for model versioning to manage updates and rollbacks effectively.
 
@@ -161,7 +161,7 @@ Refer to the code notebook for detailed implementation of the preprocessing, mod
 
 ## Corrections
 
-The following statements were corrected on **November 20, 2026** after a check against the notebook outputs, the saved model file and the committed training CSV. The model, the notebook and the data are unchanged. Only the README was wrong or incomplete.
+On **November 20, 2026**, I checked the statements below against the notebook outputs, saved model file, and committed training CSV and corrected them. I did not change the model, notebook, or data. The earlier README was wrong or incomplete.
 
 | Item | Previously stated | Corrected to | Cause |
 |------|-------------------|--------------|-------|
